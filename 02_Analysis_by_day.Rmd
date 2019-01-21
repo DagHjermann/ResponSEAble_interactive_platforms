@@ -1,0 +1,87 @@
+---
+title: "02 Analysis by day"
+output: 
+  html_document:
+    keep_md: true
+    toc: true
+    toc_float: true
+---
+
+## Libraries
+```{r setup, include=FALSE}
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+library(stringr)
+library(tidyr)
+
+colorbrewer_blue <- RColorBrewer::brewer.pal(2, name = "Set1")[2]
+```
+
+## Data
+```{r}
+dat <- read_excel("Input_data/Statistikk ResponSEAble - apr - des 2018.xlsx", sheet = 2, skip = 13)
+colnames(dat)[1] <- "Day_str"
+colnames(dat)[4] <- "Avg_pageviews"
+dat$Avg_pageviews <- as.numeric(dat$Avg_pageviews)
+
+dat$Day <- str_sub(dat$Day_str, start = 6) %>% paste("2018") %>% dmy()
+
+dat$Weekday <- str_sub(dat$Day_str, start = 1, end = 3)
+dat$Weekday <- factor(dat$Weekday, levels = c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"))
+
+```
+
+
+```{r}
+dat_plot <- dat %>% 
+  select(Day, Visitors, Avg_pageviews) %>% 
+  gather("Variable", "Value", -Day) %>%
+  filter(!(Day <= ymd("2018-04-06") & Variable == "Avg_pageviews")) %>%
+  mutate(Variable = case_when(Variable == "Avg_pageviews" ~ "Average no. pageviews",
+                              Variable =="Visitors" ~ "Number of visitors")) %>%
+  mutate(Variable = factor(Variable, levels = c("Number of visitors", "Average no. pageviews")))
+ggplot(dat_plot, aes(Day, Value)) + 
+  geom_line(color = colorbrewer_blue) + 
+  facet_wrap(~Variable, ncol = 1, scales = "free_y") +
+  labs(y = "") +
+  theme_bw()
+
+ggsave("Figures/02_01.png", width = 6, height = 4, dpi = 400)
+
+
+```
+
+```{r, fig.width=8}
+library(openair) 
+ 
+# load example data from package 
+data(mydata) 
+ 
+# basic plot 
+dat$date <- as.POSIXct(dat$Day)
+
+
+png("Figures/02_02.png", width = 9, height = 6, unit = "in", res = 400)
+calendarPlot(dat, pollutant = "Visitors", year = 2018)
+dev.off()
+```
+
+```{r}
+png("Figures/02_03.png", width = 9, height = 6, unit = "in", res = 400)
+calendarPlot(dat[-(1:5),], pollutant = "Avg_pageviews", year = 2018)
+dev.off()
+```
+
+```{r}
+
+ggplot(dat, aes(week(date), Visitors, color = Weekday)) + 
+  geom_line() +
+  scale_color_brewer(palette = "Dark2") +
+  labs(x = "Week number")
+
+```
+
+
+
